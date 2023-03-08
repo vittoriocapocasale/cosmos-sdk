@@ -9,7 +9,6 @@ import "gogoproto/gogo.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "cosmos_proto/cosmos.proto";
-import "google/protobuf/any.proto";
 import "amino/amino.proto";
 
 // Member represents a group member with an account address,
