@@ -215,7 +215,7 @@ func NewExampleTableTable(db ormtable.Schema) (ExampleTableTable, error) {
 
 type ExampleAutoIncrementTableTable interface {
 	Insert(ctx context.Context, exampleAutoIncrementTable *ExampleAutoIncrementTable) error
-	InsertReturningId(ctx context.Context, exampleAutoIncrementTable *ExampleAutoIncrementTable) (uint64, error)
+	InsertReturningPKey(ctx context.Context, exampleAutoIncrementTable *ExampleAutoIncrementTable) (uint64, error)
 	Update(ctx context.Context, exampleAutoIncrementTable *ExampleAutoIncrementTable) error
 	Save(ctx context.Context, exampleAutoIncrementTable *ExampleAutoIncrementTable) error
 	Delete(ctx context.Context, exampleAutoIncrementTable *ExampleAutoIncrementTable) error

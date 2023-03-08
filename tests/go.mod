@@ -62,6 +62,7 @@ require (
 	github.com/cometbft/cometbft-db v0.7.0 // indirect
 	github.com/confio/ics23/go v0.9.0 // indirect
 	github.com/cosmos/btcutil v1.0.5 // indirect
+	github.com/cosmos/cosmos-sdk/orm v1.0.0-alpha.12 // indirect
 	github.com/cosmos/go-bip39 v1.0.0 // indirect
 	github.com/cosmos/gogogateway v1.2.0 // indirect
 	github.com/cosmos/iavl v0.21.0-alpha.1 // indirect
@@ -187,12 +188,13 @@ require (
 // Replace here are pending PRs, or version to be tagged.
 // It must be in sync with SimApp temporary replaces
 replace (
-	// TODO tag all extracted modules after SDK refactor
 	cosmossdk.io/client/v2 => ../client/v2
 	cosmossdk.io/x/evidence => ../x/evidence
 	cosmossdk.io/x/feegrant => ../x/feegrant
 	cosmossdk.io/x/nft => ../x/nft
 	cosmossdk.io/x/upgrade => ../x/upgrade
+	// TODO tag all extracted modules after SDK refactor
+	github.com/cosmos/cosmos-sdk/orm => ../orm
 )
 
 // Below are the long-lived replace for tests.

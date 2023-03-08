@@ -23,9 +23,12 @@ ENV GOLANG_PROTOBUF_VERSION=1.28.1 \
   GRPC_GATEWAY_VERSION=1.16.0
 
 RUN go install github.com/cosmos/cosmos-proto/cmd/protoc-gen-go-pulsar@latest && \
-    go install google.golang.org/protobuf/cmd/protoc-gen-go@v${GOLANG_PROTOBUF_VERSION} && \
-    go install github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway@v${GRPC_GATEWAY_VERSION} \
-      github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger@v${GRPC_GATEWAY_VERSION}
+  go install google.golang.org/protobuf/cmd/protoc-gen-go@v${GOLANG_PROTOBUF_VERSION} && \
+  go install github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway@v${GRPC_GATEWAY_VERSION} \
+  github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger@v${GRPC_GATEWAY_VERSION} && \
+  go install github.com/cosmos/cosmos-sdk/orm/cmd/protoc-gen-go-cosmos-orm@1bb632a567937b25dc9f5638c115427f0356fddb 
+
+## TODO remove 1bb632a567937b25dc9f5638c115427f0356fddb and replace by latest after new tag of ORM
 
 # install all gogo protobuf binaries
 RUN git clone https://github.com/cosmos/gogoproto.git; \

@@ -10,16 +10,10 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/address"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/cosmos-sdk/x/group"
-	"github.com/cosmos/cosmos-sdk/x/group/internal/orm"
+	orm "github.com/cosmos/cosmos-sdk/x/group/migrations/legacyorm"
 )
 
-const (
-	ModuleName = "group"
-
-	// Group Policy Table
-	GroupPolicyTablePrefix    byte = 0x20
-	GroupPolicyTableSeqPrefix byte = 0x21
-)
+const ModuleName = "group"
 
 // Migrate migrates the x/group module state from the consensus version 1 to version 2.
 // Specifically, it changes the group policy account from module account to base account.
@@ -33,7 +27,7 @@ func Migrate(
 	store := ctx.KVStore(storeKey)
 	curAccVal := groupPolicySeq.CurVal(store)
 	groupPolicyAccountDerivationKey := make(map[string][]byte, 0)
-	policyKey := []byte{GroupPolicyTablePrefix}
+	policyKey := []byte{orm.GroupPolicyTablePrefix}
 	for i := uint64(0); i <= curAccVal; i++ {
 		derivationKey := make([]byte, 8)
 		binary.BigEndian.PutUint64(derivationKey, i)
@@ -60,7 +54,7 @@ func Migrate(
 			panic(fmt.Errorf("group policy account %s derivation key not found", policy.Address))
 		}
 
-		ac, err := authtypes.NewModuleCredential(group.ModuleName, []byte{GroupPolicyTablePrefix}, derivationKey)
+		ac, err := authtypes.NewModuleCredential(group.ModuleName, []byte{orm.GroupPolicyTablePrefix}, derivationKey)
 		if err != nil {
 			return err
 		}

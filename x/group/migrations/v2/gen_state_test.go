@@ -8,6 +8,7 @@ import (
 
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/cosmos-sdk/x/group"
+	orm "github.com/cosmos/cosmos-sdk/x/group/migrations/legacyorm"
 	v2 "github.com/cosmos/cosmos-sdk/x/group/migrations/v2"
 )
 
@@ -54,7 +55,7 @@ func TestMigrateGenState(t *testing.T) {
 
 					k := make([]byte, 8)
 					binary.BigEndian.PutUint64(k, 0)
-					c, err := authtypes.NewModuleCredential(group.ModuleName, []byte{v2.GroupPolicyTablePrefix}, k)
+					c, err := authtypes.NewModuleCredential(group.ModuleName, []byte{orm.GroupPolicyTablePrefix}, k)
 					if err != nil {
 						panic(err)
 					}

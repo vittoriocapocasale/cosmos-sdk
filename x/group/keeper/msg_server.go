@@ -5,15 +5,16 @@ import (
 	"encoding/binary"
 	"fmt"
 
+	groupv1 "cosmossdk.io/api/cosmos/group/v1"
 	errorsmod "cosmossdk.io/errors"
 
+	"github.com/cosmos/cosmos-sdk/orm/types/ormerrors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/cosmos-sdk/x/group"
 	"github.com/cosmos/cosmos-sdk/x/group/errors"
 	"github.com/cosmos/cosmos-sdk/x/group/internal/math"
-	"github.com/cosmos/cosmos-sdk/x/group/internal/orm"
 )
 
 var _ group.MsgServer = Keeper{}
@@ -57,38 +58,39 @@ func (k Keeper) CreateGroup(goCtx context.Context, req *group.MsgCreateGroup) (*
 	}
 
 	// Create a new group in the groupTable.
-	groupInfo := &group.GroupInfo{
-		Id:          k.groupTable.Sequence().PeekNextVal(ctx.KVStore(k.key)),
+	groupInfo := group.GroupInfo{
 		Admin:       admin,
 		Metadata:    metadata,
 		Version:     1,
 		TotalWeight: totalWeight.String(),
 		CreatedAt:   ctx.BlockTime(),
 	}
-	groupID, err := k.groupTable.Create(ctx.KVStore(k.key), groupInfo)
+
+	groupID, err := k.state.GroupInfoTable().InsertReturningID(ctx, group.GroupInfoToPulsar(groupInfo))
 	if err != nil {
 		return nil, errorsmod.Wrap(err, "could not create group")
 	}
 
-	// Create new group members in the groupMemberTable.
+	// Create new group members in the group member table.
 	for i := range members.Members {
 		m := members.Members[i]
-		err := k.groupMemberTable.Create(ctx.KVStore(k.key), &group.GroupMember{
-			GroupId: groupID,
+		err := k.state.GroupMemberTable().Save(ctx, group.GroupMemberToPulsar(group.GroupMember{
+			GroupId:       groupID,
+			MemberAddress: m.Address,
 			Member: &group.Member{
 				Address:  m.Address,
 				Weight:   m.Weight,
 				Metadata: m.Metadata,
 				AddedAt:  ctx.BlockTime(),
 			},
-		})
+		}))
+
 		if err != nil {
 			return nil, errorsmod.Wrapf(err, "could not store member %d", i)
 		}
 	}
 
-	err = ctx.EventManager().EmitTypedEvent(&group.EventCreateGroup{GroupId: groupID})
-	if err != nil {
+	if err := ctx.EventManager().EmitTypedEvent(&group.EventCreateGroup{GroupId: groupID}); err != nil {
 		return nil, err
 	}
 
@@ -117,15 +119,17 @@ func (k Keeper) UpdateGroupMembers(goCtx context.Context, req *group.MsgUpdateGr
 
 			// Checking if the group member is already part of the group
 			var found bool
-			var prevGroupMember group.GroupMember
-			switch err := k.groupMemberTable.GetOne(ctx.KVStore(k.key), orm.PrimaryKey(&groupMember), &prevGroupMember); {
+			prevGroupMemberPulsar, err := k.state.GroupMemberTable().Get(ctx, groupMember.GroupId, groupMember.MemberAddress)
+			switch {
 			case err == nil:
 				found = true
-			case sdkerrors.ErrNotFound.Is(err):
+			case ormerrors.IsNotFound(err):
 				found = false
 			default:
 				return errorsmod.Wrap(err, "get group member")
 			}
+
+			prevGroupMember := group.GroupMemberFromPulsar(prevGroupMemberPulsar)
 
 			newMemberWeight, err := math.NewNonNegativeDecFromString(groupMember.Member.Weight)
 			if err != nil {
@@ -150,8 +154,8 @@ func (k Keeper) UpdateGroupMembers(goCtx context.Context, req *group.MsgUpdateGr
 					return err
 				}
 
-				// Delete group member in the groupMemberTable.
-				if err := k.groupMemberTable.Delete(ctx.KVStore(k.key), &groupMember); err != nil {
+				// Delete group member in the group member table.
+				if err := k.state.GroupMemberTable().Delete(ctx, group.GroupMemberToPulsar(groupMember)); err != nil {
 					return errorsmod.Wrap(err, "delete member")
 				}
 				continue
@@ -169,12 +173,12 @@ func (k Keeper) UpdateGroupMembers(goCtx context.Context, req *group.MsgUpdateGr
 				}
 				// Save updated group member in the groupMemberTable.
 				groupMember.Member.AddedAt = prevGroupMember.Member.AddedAt
-				if err := k.groupMemberTable.Update(ctx.KVStore(k.key), &groupMember); err != nil {
+				if err := k.state.GroupMemberTable().Update(ctx, group.GroupMemberToPulsar(groupMember)); err != nil {
 					return errorsmod.Wrap(err, "add member")
 				}
 			} else { // else handle create.
 				groupMember.Member.AddedAt = ctx.BlockTime()
-				if err := k.groupMemberTable.Create(ctx.KVStore(k.key), &groupMember); err != nil {
+				if err := k.state.GroupMemberTable().Insert(ctx, group.GroupMemberToPulsar(groupMember)); err != nil {
 					return errorsmod.Wrap(err, "add member")
 				}
 			}
@@ -184,7 +188,7 @@ func (k Keeper) UpdateGroupMembers(goCtx context.Context, req *group.MsgUpdateGr
 				return err
 			}
 		}
-		// Update group in the groupTable.
+		// Update group in the group table.
 		g.TotalWeight = totalWeight.String()
 		g.Version++
 
@@ -192,11 +196,10 @@ func (k Keeper) UpdateGroupMembers(goCtx context.Context, req *group.MsgUpdateGr
 			return err
 		}
 
-		return k.groupTable.Update(ctx.KVStore(k.key), g.Id, g)
+		return k.state.GroupInfoTable().Update(ctx, group.GroupInfoToPulsar(*g))
 	}
 
-	err := k.doUpdateGroup(ctx, req, action, "members updated")
-	if err != nil {
+	if err := k.doUpdateGroup(ctx, req, action, "members updated"); err != nil {
 		return nil, err
 	}
 
@@ -209,7 +212,7 @@ func (k Keeper) UpdateGroupAdmin(goCtx context.Context, req *group.MsgUpdateGrou
 		g.Admin = req.NewAdmin
 		g.Version++
 
-		return k.groupTable.Update(ctx.KVStore(k.key), g.Id, g)
+		return k.state.GroupInfoTable().Update(ctx, group.GroupInfoToPulsar(*g))
 	}
 
 	err := k.doUpdateGroup(ctx, req, action, "admin updated")
@@ -225,7 +228,7 @@ func (k Keeper) UpdateGroupMetadata(goCtx context.Context, req *group.MsgUpdateG
 	action := func(g *group.GroupInfo) error {
 		g.Metadata = req.Metadata
 		g.Version++
-		return k.groupTable.Update(ctx.KVStore(k.key), g.Id, g)
+		return k.state.GroupInfoTable().Update(ctx, group.GroupInfoToPulsar(*g))
 	}
 
 	if err := k.assertMetadataLength(req.Metadata, "group metadata"); err != nil {
@@ -334,11 +337,12 @@ func (k Keeper) CreateGroupPolicy(goCtx context.Context, req *group.MsgCreateGro
 	// loop here in the rare case where a ADR-028-derived address creates a
 	// collision with an existing address.
 	for {
-		nextAccVal := k.groupPolicySeq.NextVal(ctx.KVStore(k.key))
+		// nextAccVal := k.groupPolicySeq.NextVal(ctx.KVStore(k.key)) // TODO: find a way to repliate the previous behavior
 		derivationKey := make([]byte, 8)
-		binary.BigEndian.PutUint64(derivationKey, nextAccVal)
+		binary.BigEndian.PutUint64(derivationKey, 69420) // TODO see above
 
-		ac, err := authtypes.NewModuleCredential(group.ModuleName, []byte{GroupPolicyTablePrefix}, derivationKey)
+		// The first derivation key is 0x20 and represents the value that had GroupPolicyTablePrefix in the previous orm.
+		ac, err := authtypes.NewModuleCredential(group.ModuleName, []byte{0x20}, derivationKey)
 		if err != nil {
 			return nil, err
 		}
@@ -374,12 +378,11 @@ func (k Keeper) CreateGroupPolicy(goCtx context.Context, req *group.MsgCreateGro
 		return nil, err
 	}
 
-	if err := k.groupPolicyTable.Create(ctx.KVStore(k.key), &groupPolicy); err != nil {
+	if err := k.state.GroupPolicyInfoTable().Save(ctx, group.GroupPolicyInfoToPulsar(groupPolicy)); err != nil {
 		return nil, errorsmod.Wrap(err, "could not create group policy")
 	}
 
-	err = ctx.EventManager().EmitTypedEvent(&group.EventCreateGroupPolicy{Address: accountAddr.String()})
-	if err != nil {
+	if err = ctx.EventManager().EmitTypedEvent(&group.EventCreateGroupPolicy{Address: accountAddr.String()}); err != nil {
 		return nil, err
 	}
 
@@ -391,7 +394,7 @@ func (k Keeper) UpdateGroupPolicyAdmin(goCtx context.Context, req *group.MsgUpda
 	action := func(groupPolicy *group.GroupPolicyInfo) error {
 		groupPolicy.Admin = req.NewAdmin
 		groupPolicy.Version++
-		return k.groupPolicyTable.Update(ctx.KVStore(k.key), groupPolicy)
+		return k.state.GroupPolicyInfoTable().Update(ctx, group.GroupPolicyInfoToPulsar(*groupPolicy))
 	}
 
 	err := k.doUpdateGroupPolicy(ctx, req.GroupPolicyAddress, req.Admin, action, "group policy admin updated")
@@ -426,7 +429,8 @@ func (k Keeper) UpdateGroupPolicyDecisionPolicy(goCtx context.Context, req *grou
 		}
 
 		groupPolicy.Version++
-		return k.groupPolicyTable.Update(ctx.KVStore(k.key), groupPolicy)
+
+		return k.state.GroupPolicyInfoTable().Update(ctx, group.GroupPolicyInfoToPulsar(*groupPolicy))
 	}
 
 	err = k.doUpdateGroupPolicy(ctx, req.GroupPolicyAddress, req.Admin, action, "group policy's decision policy updated")
@@ -444,7 +448,7 @@ func (k Keeper) UpdateGroupPolicyMetadata(goCtx context.Context, req *group.MsgU
 	action := func(groupPolicy *group.GroupPolicyInfo) error {
 		groupPolicy.Metadata = metadata
 		groupPolicy.Version++
-		return k.groupPolicyTable.Update(ctx.KVStore(k.key), groupPolicy)
+		return k.state.GroupPolicyInfoTable().Update(ctx, group.GroupPolicyInfoToPulsar(*groupPolicy))
 	}
 
 	if err := k.assertMetadataLength(metadata, "group policy metadata"); err != nil {
@@ -496,7 +500,9 @@ func (k Keeper) SubmitProposal(goCtx context.Context, req *group.MsgSubmitPropos
 
 	// Only members of the group can submit a new proposal.
 	for i := range proposers {
-		if !k.groupMemberTable.Has(ctx.KVStore(k.key), orm.PrimaryKey(&group.GroupMember{GroupId: g.Id, Member: &group.Member{Address: proposers[i]}})) {
+		if ok, err := k.state.GroupMemberTable().Has(ctx, g.Id, proposers[i]); err != nil {
+			return nil, errorsmod.Wrapf(sdkerrors.ErrLogic, "failed getting member: %s: %w", proposers[i], err)
+		} else if !ok {
 			return nil, errorsmod.Wrapf(errors.ErrUnauthorized, "not in group: %s", proposers[i])
 		}
 	}
@@ -517,8 +523,7 @@ func (k Keeper) SubmitProposal(goCtx context.Context, req *group.MsgSubmitPropos
 		return nil, err
 	}
 
-	m := &group.Proposal{
-		Id:                 k.proposalTable.Sequence().PeekNextVal(ctx.KVStore(k.key)),
+	p := &group.Proposal{
 		GroupPolicyAddress: req.GroupPolicyAddress,
 		Metadata:           metadata,
 		Proposers:          proposers,
@@ -533,11 +538,11 @@ func (k Keeper) SubmitProposal(goCtx context.Context, req *group.MsgSubmitPropos
 		Summary:            req.Summary,
 	}
 
-	if err := m.SetMsgs(msgs); err != nil {
+	if err := p.SetMsgs(msgs); err != nil {
 		return nil, errorsmod.Wrap(err, "create proposal")
 	}
 
-	id, err := k.proposalTable.Create(ctx.KVStore(k.key), m)
+	id, err := k.state.ProposalTable().InsertReturningID(ctx, group.ProposalToPulsar(*p))
 	if err != nil {
 		return nil, errorsmod.Wrap(err, "create proposal")
 	}
@@ -603,7 +608,7 @@ func (k Keeper) WithdrawProposal(goCtx context.Context, req *group.MsgWithdrawPr
 	}
 
 	proposal.Status = group.PROPOSAL_STATUS_WITHDRAWN
-	if err := k.proposalTable.Update(ctx.KVStore(k.key), id, &proposal); err != nil {
+	if err := k.state.ProposalTable().Update(ctx, group.ProposalToPulsar(proposal)); err != nil {
 		return nil, err
 	}
 
@@ -637,6 +642,7 @@ func (k Keeper) Vote(goCtx context.Context, req *group.MsgVote) (*group.MsgVoteR
 		return nil, errorsmod.Wrap(errors.ErrExpired, "voting period has ended already")
 	}
 
+	// check if voter exists
 	policyInfo, err := k.getGroupPolicyInfo(ctx, proposal.GroupPolicyAddress)
 	if err != nil {
 		return nil, errorsmod.Wrap(err, "load group policy")
@@ -647,12 +653,15 @@ func (k Keeper) Vote(goCtx context.Context, req *group.MsgVote) (*group.MsgVoteR
 		return nil, err
 	}
 
-	// Count and store votes.
 	voterAddr := req.Voter
-	voter := group.GroupMember{GroupId: electorate.Id, Member: &group.Member{Address: voterAddr}}
-	if err := k.groupMemberTable.GetOne(ctx.KVStore(k.key), orm.PrimaryKey(&voter), &voter); err != nil {
+	_, err = k.state.GroupMemberTable().Get(ctx, electorate.Id, voterAddr)
+	if ormerrors.IsNotFound(err) {
+		return nil, errorsmod.Wrapf(errors.ErrUnauthorized, "voter address: %s", voterAddr)
+	} else if err != nil {
 		return nil, errorsmod.Wrapf(err, "voter address: %s", voterAddr)
 	}
+
+	// store vote
 	newVote := group.Vote{
 		ProposalId: id,
 		Voter:      voterAddr,
@@ -663,12 +672,11 @@ func (k Keeper) Vote(goCtx context.Context, req *group.MsgVote) (*group.MsgVoteR
 
 	// The ORM will return an error if the vote already exists,
 	// making sure than a voter hasn't already voted.
-	if err := k.voteTable.Create(ctx.KVStore(k.key), &newVote); err != nil {
+	if err := k.state.VoteTable().Insert(ctx, group.VoteToPulsar(newVote)); err != nil {
 		return nil, errorsmod.Wrap(err, "store vote")
 	}
 
-	err = ctx.EventManager().EmitTypedEvent(&group.EventVote{ProposalId: id})
-	if err != nil {
+	if err = ctx.EventManager().EmitTypedEvent(&group.EventVote{ProposalId: id}); err != nil {
 		return nil, err
 	}
 
@@ -782,15 +790,14 @@ func (k Keeper) Exec(goCtx context.Context, req *group.MsgExec) (*group.MsgExecR
 		}
 	}
 
-	// Update proposal in proposalTable
+	// Update proposal in proposal table.
 	// If proposal has successfully run, delete it from state.
 	if proposal.ExecutorResult == group.PROPOSAL_EXECUTOR_RESULT_SUCCESS {
 		if err := k.pruneProposal(ctx, proposal.Id); err != nil {
 			return nil, err
 		}
 	} else {
-		store := ctx.KVStore(k.key)
-		if err := k.proposalTable.Update(store, id, &proposal); err != nil {
+		if err := k.state.ProposalTable().Update(ctx, group.ProposalToPulsar(proposal)); err != nil {
 			return nil, err
 		}
 	}
@@ -827,10 +834,7 @@ func (k Keeper) LeaveGroup(goCtx context.Context, req *group.MsgLeaveGroup) (*gr
 		return nil, err
 	}
 
-	gm, err := k.getGroupMember(ctx, &group.GroupMember{
-		GroupId: req.GroupId,
-		Member:  &group.Member{Address: req.Address},
-	})
+	gm, err := k.getGroupMember(ctx, req.GroupId, req.Address)
 	if err != nil {
 		return nil, err
 	}
@@ -845,8 +849,8 @@ func (k Keeper) LeaveGroup(goCtx context.Context, req *group.MsgLeaveGroup) (*gr
 		return nil, err
 	}
 
-	// delete group member in the groupMemberTable.
-	if err := k.groupMemberTable.Delete(ctx.KVStore(k.key), gm); err != nil {
+	// delete group member in the group member table.
+	if err := k.state.GroupMemberTable().Delete(ctx, group.GroupMemberToPulsar(*gm)); err != nil {
 		return nil, errorsmod.Wrap(err, "group member")
 	}
 
@@ -858,7 +862,7 @@ func (k Keeper) LeaveGroup(goCtx context.Context, req *group.MsgLeaveGroup) (*gr
 		return nil, err
 	}
 
-	if err := k.groupTable.Update(ctx.KVStore(k.key), groupInfo.Id, &groupInfo); err != nil {
+	if err := k.state.GroupInfoTable().Update(ctx, group.GroupInfoToPulsar(groupInfo)); err != nil {
 		return nil, err
 	}
 
@@ -870,19 +874,16 @@ func (k Keeper) LeaveGroup(goCtx context.Context, req *group.MsgLeaveGroup) (*gr
 	return &group.MsgLeaveGroupResponse{}, nil
 }
 
-func (k Keeper) getGroupMember(ctx sdk.Context, member *group.GroupMember) (*group.GroupMember, error) {
-	var groupMember group.GroupMember
-	switch err := k.groupMemberTable.GetOne(ctx.KVStore(k.key),
-		orm.PrimaryKey(member), &groupMember); {
-	case err == nil:
-		break
-	case sdkerrors.ErrNotFound.Is(err):
-		return nil, sdkerrors.ErrNotFound.Wrapf("%s is not part of group %d", member.Member.Address, member.GroupId)
-	default:
+func (k Keeper) getGroupMember(ctx sdk.Context, groupID uint64, memberAddress string) (*group.GroupMember, error) {
+	member, err := k.state.GroupMemberTable().Get(ctx, groupID, memberAddress)
+	if ormerrors.IsNotFound(err) {
+		return nil, sdkerrors.ErrNotFound.Wrapf("%s is not part of group %d", memberAddress, groupID)
+	} else if err != nil {
 		return nil, err
 	}
 
-	return &groupMember, nil
+	m := group.GroupMemberFromPulsar(member)
+	return &m, nil
 }
 
 type authNGroupReq interface {
@@ -985,24 +986,20 @@ func (k Keeper) assertMetadataLength(metadata string, description string) error 
 // validateDecisionPolicies loops through all decision policies from the group,
 // and calls each of their Validate() method.
 func (k Keeper) validateDecisionPolicies(ctx sdk.Context, g group.GroupInfo) error {
-	it, err := k.groupPolicyByGroupIndex.Get(ctx.KVStore(k.key), g.Id)
+	it, err := k.state.GroupPolicyInfoTable().List(ctx, groupv1.GroupPolicyInfoGroupIdIndexKey{}.WithGroupId(g.Id))
 	if err != nil {
 		return err
 	}
 	defer it.Close()
 
-	for {
-		var groupPolicy group.GroupPolicyInfo
-		_, err = it.LoadNext(&groupPolicy)
-		if errors.ErrORMIteratorDone.Is(err) {
-			break
-		}
+	for it.Next() {
+		groupPolicy, err := it.Value()
 		if err != nil {
 			return err
 		}
 
-		err = groupPolicy.DecisionPolicy.GetCachedValue().(group.DecisionPolicy).Validate(g, k.config)
-		if err != nil {
+		gp := group.GroupPolicyInfoFromPulsar(groupPolicy)
+		if err = gp.DecisionPolicy.GetCachedValue().(group.DecisionPolicy).Validate(g, k.config); err != nil {
 			return err
 		}
 	}

@@ -1,13 +1,12 @@
-// nolint
 package types
 
 import (
 	fmt "fmt"
 
 	"github.com/cosmos/gogoproto/proto"
+	anypb "google.golang.org/protobuf/types/known/anypb"
 
 	errorsmod "cosmossdk.io/errors"
-
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
@@ -132,4 +131,18 @@ func (any *Any) String() string {
 	}
 	return fmt.Sprintf("&Any{TypeUrl:%v,Value:%v,XXX_unrecognized:%v}",
 		any.TypeUrl, any.Value, any.XXX_unrecognized)
+}
+
+func AnyV2ToGogoAny(any *anypb.Any) *Any {
+	return &Any{
+		TypeUrl: any.TypeUrl,
+		Value:   any.Value,
+	}
+}
+
+func GogoAnyToAnyV2(any *Any) *anypb.Any {
+	return &anypb.Any{
+		TypeUrl: any.TypeUrl,
+		Value:   any.Value,
+	}
 }

@@ -1,4 +1,4 @@
-package errors
+package orm
 
 import "cosmossdk.io/errors"
 
