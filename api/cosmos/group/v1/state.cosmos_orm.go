@@ -93,7 +93,7 @@ func (this groupInfoTable) Delete(ctx context.Context, groupInfo *GroupInfo) err
 }
 
 func (this groupInfoTable) InsertReturningID(ctx context.Context, groupInfo *GroupInfo) (uint64, error) {
-	return this.table.InsertReturningID(ctx, groupInfo)
+	return this.table.InsertReturningPKey(ctx, groupInfo)
 }
 
 func (this groupInfoTable) Has(ctx context.Context, id uint64) (found bool, err error) {
@@ -510,7 +510,7 @@ func (this proposalTable) Delete(ctx context.Context, proposal *Proposal) error 
 }
 
 func (this proposalTable) InsertReturningID(ctx context.Context, proposal *Proposal) (uint64, error) {
-	return this.table.InsertReturningID(ctx, proposal)
+	return this.table.InsertReturningPKey(ctx, proposal)
 }
 
 func (this proposalTable) Has(ctx context.Context, id uint64) (found bool, err error) {

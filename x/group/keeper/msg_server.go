@@ -501,7 +501,7 @@ func (k Keeper) SubmitProposal(goCtx context.Context, req *group.MsgSubmitPropos
 	// Only members of the group can submit a new proposal.
 	for i := range proposers {
 		if ok, err := k.state.GroupMemberTable().Has(ctx, g.Id, proposers[i]); err != nil {
-			return nil, errorsmod.Wrapf(sdkerrors.ErrLogic, "failed getting member: %s: %w", proposers[i], err)
+			return nil, errorsmod.Wrapf(sdkerrors.ErrLogic, "failed getting member: %s: %s", proposers[i], err.Error())
 		} else if !ok {
 			return nil, errorsmod.Wrapf(errors.ErrUnauthorized, "not in group: %s", proposers[i])
 		}
