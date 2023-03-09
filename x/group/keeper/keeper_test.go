@@ -108,7 +108,8 @@ func (s *TestSuite) SetupTest() {
 	s.Require().NoError(err)
 	s.setNextAccount()
 
-	groupSeq := s.groupKeeper.GetGroupSequence(s.sdkCtx)
+	groupSeq, err := s.groupKeeper.GetGroupSequence(s.sdkCtx)
+	s.Require().NoError(err)
 	s.Require().Equal(groupSeq, uint64(1))
 
 	policyRes, err := s.groupKeeper.CreateGroupPolicy(s.ctx, policyReq)

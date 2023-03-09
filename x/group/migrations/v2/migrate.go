@@ -13,7 +13,10 @@ import (
 	orm "github.com/cosmos/cosmos-sdk/x/group/migrations/legacyorm"
 )
 
-const ModuleName = "group"
+const (
+	ModuleName = "group"
+	StoreKey   = ModuleName
+)
 
 // Migrate migrates the x/group module state from the consensus version 1 to version 2.
 // Specifically, it changes the group policy account from module account to base account.

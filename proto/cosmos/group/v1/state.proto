@@ -96,6 +96,10 @@ message GroupPolicyInfo {
   // created_at is a timestamp specifying when a group policy was created.
   google.protobuf.Timestamp created_at = 7
       [(gogoproto.nullable) = false, (amino.dont_omitempty) = true, (gogoproto.stdtime) = true];
+
+  // group_policy_sequence is the sequence of the group policy.
+  // It determines how is generated the address of the group policy.
+  uint64 group_policy_sequence = 8;
 }
 
 // Proposal defines a group proposal. Any member of a group can submit a proposal

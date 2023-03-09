@@ -66,7 +66,7 @@ func (k Keeper) CreateGroup(goCtx context.Context, req *group.MsgCreateGroup) (*
 		CreatedAt:   ctx.BlockTime(),
 	}
 
-	groupID, err := k.state.GroupInfoTable().InsertReturningID(ctx, group.GroupInfoToPulsar(groupInfo))
+	groupID, err := k.state.GroupInfoTable().InsertReturningId(ctx, group.GroupInfoToPulsar(groupInfo))
 	if err != nil {
 		return nil, errorsmod.Wrap(err, "could not create group")
 	}
@@ -542,7 +542,7 @@ func (k Keeper) SubmitProposal(goCtx context.Context, req *group.MsgSubmitPropos
 		return nil, errorsmod.Wrap(err, "create proposal")
 	}
 
-	id, err := k.state.ProposalTable().InsertReturningID(ctx, group.ProposalToPulsar(*p))
+	id, err := k.state.ProposalTable().InsertReturningId(ctx, group.ProposalToPulsar(*p))
 	if err != nil {
 		return nil, errorsmod.Wrap(err, "create proposal")
 	}
