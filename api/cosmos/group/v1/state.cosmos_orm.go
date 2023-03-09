@@ -12,7 +12,8 @@ import (
 
 type GroupInfoTable interface {
 	Insert(ctx context.Context, groupInfo *GroupInfo) error
-	InsertReturningID(ctx context.Context, groupInfo *GroupInfo) (uint64, error)
+	InsertReturningId(ctx context.Context, groupInfo *GroupInfo) (uint64, error)
+	LastInsertedSequence(ctx context.Context) (uint64, error)
 	Update(ctx context.Context, groupInfo *GroupInfo) error
 	Save(ctx context.Context, groupInfo *GroupInfo) error
 	Delete(ctx context.Context, groupInfo *GroupInfo) error
@@ -92,8 +93,12 @@ func (this groupInfoTable) Delete(ctx context.Context, groupInfo *GroupInfo) err
 	return this.table.Delete(ctx, groupInfo)
 }
 
-func (this groupInfoTable) InsertReturningID(ctx context.Context, groupInfo *GroupInfo) (uint64, error) {
+func (this groupInfoTable) InsertReturningId(ctx context.Context, groupInfo *GroupInfo) (uint64, error) {
 	return this.table.InsertReturningPKey(ctx, groupInfo)
+}
+
+func (this groupInfoTable) LastInsertedSequence(ctx context.Context) (uint64, error) {
+	return this.table.LastInsertedSequence(ctx)
 }
 
 func (this groupInfoTable) Has(ctx context.Context, id uint64) (found bool, err error) {
@@ -416,7 +421,8 @@ func NewGroupPolicyInfoTable(db ormtable.Schema) (GroupPolicyInfoTable, error) {
 
 type ProposalTable interface {
 	Insert(ctx context.Context, proposal *Proposal) error
-	InsertReturningID(ctx context.Context, proposal *Proposal) (uint64, error)
+	InsertReturningId(ctx context.Context, proposal *Proposal) (uint64, error)
+	LastInsertedSequence(ctx context.Context) (uint64, error)
 	Update(ctx context.Context, proposal *Proposal) error
 	Save(ctx context.Context, proposal *Proposal) error
 	Delete(ctx context.Context, proposal *Proposal) error
@@ -509,8 +515,12 @@ func (this proposalTable) Delete(ctx context.Context, proposal *Proposal) error 
 	return this.table.Delete(ctx, proposal)
 }
 
-func (this proposalTable) InsertReturningID(ctx context.Context, proposal *Proposal) (uint64, error) {
+func (this proposalTable) InsertReturningId(ctx context.Context, proposal *Proposal) (uint64, error) {
 	return this.table.InsertReturningPKey(ctx, proposal)
+}
+
+func (this proposalTable) LastInsertedSequence(ctx context.Context) (uint64, error) {
+	return this.table.LastInsertedSequence(ctx)
 }
 
 func (this proposalTable) Has(ctx context.Context, id uint64) (found bool, err error) {
