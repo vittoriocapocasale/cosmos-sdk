@@ -181,6 +181,11 @@ func (k Keeper) votesByProposal(ctx sdk.Context, proposalID uint64) ([]*groupv1.
 	return votes, nil
 }
 
+// GetGroupSequence returns the current value of the group table sequence
+func (k Keeper) GetGroupSequence(ctx sdk.Context) (uint64, error) {
+	return k.state.GroupInfoTable().CurrentSequence(ctx)
+}
+
 // PruneProposals prunes all proposals that are expired, i.e. whose
 // `voting_period + max_execution_period` is greater than the current block
 // time.
