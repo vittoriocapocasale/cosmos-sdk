@@ -124,12 +124,8 @@ func (am AppModule) RegisterInvariants(ir sdk.InvariantRegistry) {
 	keeper.RegisterInvariants(ir, am.keeper)
 }
 
-func (am AppModule) NewHandler() sdk.Handler {
-	return nil
-}
-
-// InitGenesis performs genesis initialization for the group module.
-// It returns no validator updates.
+// InitGenesis performs genesis initialization for the group module. It returns
+// no validator updates.
 func (am AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, data json.RawMessage) []abci.ValidatorUpdate {
 	return []abci.ValidatorUpdate{}
 }
