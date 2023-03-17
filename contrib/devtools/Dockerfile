@@ -28,7 +28,7 @@ RUN go install github.com/cosmos/cosmos-proto/cmd/protoc-gen-go-pulsar@latest &&
   github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger@v${GRPC_GATEWAY_VERSION}
 
 # We need to remove the replace from the go.mod file, otherwise the go install command will fail
-RUN go install github.com/cosmos/cosmos-sdk/orm/cmd/protoc-gen-go-cosmos-orm@ddd18ff2eba062345a453304f04174c4b8fb0614 
+RUN go install github.com/cosmos/cosmos-sdk/orm/cmd/protoc-gen-go-cosmos-orm@8f54a476078a2bb2ea25d55f8fb54c17720b3759 
 
 # install all gogo protobuf binaries
 RUN git clone https://github.com/cosmos/gogoproto.git; \
