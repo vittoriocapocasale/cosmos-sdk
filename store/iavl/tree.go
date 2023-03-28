@@ -34,6 +34,7 @@ type (
 		AvailableVersions() []int
 		LoadVersionForOverwriting(targetVersion int64) error
 		TraverseStateChanges(startVersion, endVersion int64, fn func(version int64, changeSet *iavl.ChangeSet) error) error
+		SaveChangeSet(changeSet *iavl.ChangeSet) (int64, error)
 	}
 
 	// immutableTree is a simple wrapper around a reference to an iavl.ImmutableTree
@@ -94,4 +95,8 @@ func (it *immutableTree) LoadVersionForOverwriting(targetVersion int64) error {
 
 func (it *immutableTree) LazyLoadVersionForOverwriting(targetVersion int64) (int64, error) {
 	panic("cannot call 'LazyLoadVersionForOverwriting' on an immutable IAVL tree")
+}
+
+func (it *immutableTree) SaveChangeSet(changeSet *iavl.ChangeSet) (int64, error) {
+	panic("cannot call 'SaveChangeSet' on an immutable IAVL tree")
 }
