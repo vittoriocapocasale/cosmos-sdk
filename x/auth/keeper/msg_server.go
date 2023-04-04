@@ -2,12 +2,10 @@ package keeper
 
 import (
 	"context"
-
-	"cosmossdk.io/errors"
+	"fmt"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
-	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 )
 
 var _ types.MsgServer = msgServer{}
@@ -25,7 +23,9 @@ func NewMsgServerImpl(ak AccountKeeper) types.MsgServer {
 
 func (ms msgServer) UpdateParams(goCtx context.Context, req *types.MsgUpdateParams) (*types.MsgUpdateParamsResponse, error) {
 	if ms.authority != req.Authority {
-		return nil, errors.Wrapf(govtypes.ErrInvalidSigner, "invalid authority; expected %s, got %s", ms.authority, req.Authority)
+		return nil, fmt.Errorf(
+			"expected gov account as only signer for proposal message; invalid authority; expected %s, got %s",
+			ms.authority, req.Authority)
 	}
 
 	ctx := sdk.UnwrapSDKContext(goCtx)
