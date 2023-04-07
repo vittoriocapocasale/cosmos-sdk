@@ -48,7 +48,7 @@ const (
 var _ abci.Application = (*BaseApp)(nil)
 
 // BaseApp reflects the ABCI application implementation.
-type BaseApp struct { //nolint: maligned
+type BaseApp struct {
 	// initialized on creation
 	logger            log.Logger
 	name              string                      // application name from abci.Info
@@ -522,8 +522,12 @@ func validateBasicTxMsgs(msgs []sdk.Msg) error {
 	}
 
 	for _, msg := range msgs {
-		err := msg.ValidateBasic()
-		if err != nil {
+		m, ok := msg.(sdk.HasValidateBasic)
+		if !ok {
+			continue
+		}
+
+		if err := m.ValidateBasic(); err != nil {
 			return err
 		}
 	}
@@ -861,7 +865,7 @@ func (app *BaseApp) PrepareProposalVerifyTx(tx sdk.Tx) ([]byte, error) {
 		return nil, err
 	}
 
-	_, _, _, _, err = app.runTx(runTxPrepareProposal, bz) //nolint:dogsled
+	_, _, _, _, err = app.runTx(runTxPrepareProposal, bz)
 	if err != nil {
 		return nil, err
 	}
@@ -880,7 +884,7 @@ func (app *BaseApp) ProcessProposalVerifyTx(txBz []byte) (sdk.Tx, error) {
 		return nil, err
 	}
 
-	_, _, _, _, err = app.runTx(runTxProcessProposal, txBz) //nolint:dogsled
+	_, _, _, _, err = app.runTx(runTxProcessProposal, txBz)
 	if err != nil {
 		return nil, err
 	}

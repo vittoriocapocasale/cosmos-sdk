@@ -324,7 +324,7 @@ func deleteKVStore(kv types.KVStore) error {
 }
 
 // we simulate move by a copy and delete
-func moveKVStoreData(oldDB types.KVStore, newDB types.KVStore) error {
+func moveKVStoreData(oldDB, newDB types.KVStore) error {
 	// we read from one and write to another
 	itr := oldDB.Iterator(nil, nil)
 	for itr.Valid() {
@@ -718,7 +718,7 @@ func (rs *Store) SetInitialVersion(version int64) error {
 // parsePath expects a format like /<storeName>[/<subpath>]
 // Must start with /, subpath may be empty
 // Returns error if it doesn't start with /
-func parsePath(path string) (storeName string, subpath string, err error) {
+func parsePath(path string) (storeName, subpath string, err error) {
 	if !strings.HasPrefix(path, "/") {
 		return storeName, subpath, errorsmod.Wrapf(types.ErrUnknownRequest, "invalid path: %s", path)
 	}
@@ -802,7 +802,6 @@ func (rs *Store) Snapshot(height uint64, protoWriter protoio.Writer) error {
 				node, err := exporter.Next()
 				if err == iavltree.ErrorExportDone {
 					rs.logger.Debug("snapshot Done", "store", store.name, "nodeCount", nodeCount)
-					nodeCount = 0
 					break
 				} else if err != nil {
 					return err
@@ -1074,7 +1073,7 @@ type storeParams struct {
 	initialVersion uint64
 }
 
-func newStoreParams(key types.StoreKey, db dbm.DB, typ types.StoreType, initialVersion uint64) storeParams { // nolint
+func newStoreParams(key types.StoreKey, db dbm.DB, typ types.StoreType, initialVersion uint64) storeParams {
 	return storeParams{
 		key:            key,
 		db:             db,

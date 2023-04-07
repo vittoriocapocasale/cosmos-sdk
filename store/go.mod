@@ -4,12 +4,12 @@ go 1.20
 
 require (
 	cosmossdk.io/errors v1.0.0-beta.7
-	cosmossdk.io/log v0.1.0
+	cosmossdk.io/log v1.0.0
 	cosmossdk.io/math v1.0.0
 	github.com/armon/go-metrics v0.4.1
 	github.com/cometbft/cometbft v0.37.0
 	github.com/cosmos/cosmos-db v1.0.0-rc.1
-	github.com/cosmos/gogoproto v1.4.6
+	github.com/cosmos/gogoproto v1.4.7
 	github.com/cosmos/iavl v1.0.0-alpha.1.0.20230323131452-2cf795ac2a2c
 	github.com/cosmos/ics23/go v0.9.1-0.20221207100636-b1abd8678aab
 	github.com/golang/mock v1.6.0
