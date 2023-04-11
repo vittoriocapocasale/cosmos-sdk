@@ -41,10 +41,12 @@ func Example() {
 	// subspace is nil because we don't test params (which is legacy anyway)
 	authModule := auth.NewAppModule(encodingCfg.Codec, accountKeeper, authsims.RandomGenesisAccounts, nil)
 
-	// here bankkeeper and staking keeper is nil because we are not testing them
+	// here bankkeeper and staking keeper is mocks because we are not testing them
+	mockBank := &mockBank{}
+	mockStaking := &mockStaking{}
 	// subspace is nil because we don't test params (which is legacy anyway)
-	mintKeeper := mintkeeper.NewKeeper(encodingCfg.Codec, keys[minttypes.StoreKey], nil, accountKeeper, nil, authtypes.FeeCollectorName, authority)
-	mintModule := mint.NewAppModule(encodingCfg.Codec, mintKeeper, accountKeeper, nil, nil)
+	mintKeeper := mintkeeper.NewKeeper(encodingCfg.Codec, keys[minttypes.StoreKey], mockStaking, accountKeeper, mockBank, authtypes.FeeCollectorName, authority)
+	mintModule := mint.NewAppModule(encodingCfg.Codec, mintKeeper, accountKeeper, minttypes.DefaultInflationCalculationFn, nil)
 
 	// create the application and register all the modules from the previous step
 	// replace the logger by testing values in a real test case (e.g. log.NewTestLogger(t))
@@ -67,9 +69,16 @@ func Example() {
 	result, err := integrationApp.RunMsg(&minttypes.MsgUpdateParams{
 		Authority: authority,
 		Params:    params,
-	})
+	},
+		integration.WithAutomaticBeginEndBlock(),
+	)
 	if err != nil {
 		panic(err)
+	}
+
+	// verify begin block was called
+	if !mockBank.calledMintCoins {
+		panic("begin block was not called")
 	}
 
 	// in this example the result is an empty response, a nil check is enough
