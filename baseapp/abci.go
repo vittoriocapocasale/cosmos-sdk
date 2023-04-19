@@ -255,6 +255,13 @@ func (app *BaseApp) CheckTx(req abci.RequestCheckTx) abci.ResponseCheckTx {
 	}
 }
 
+func (app *BaseApp) DeliverAll(txs []*abci.RequestDeliverTx) error {
+	defer telemetry.MeasureSince(time.Now(), "abci", "deliver_all")
+
+	fmt.Println("DeliverAll invoked! Num txs: ", len(txs))
+	return nil
+}
+
 // DeliverTx implements the ABCI interface and executes a tx in DeliverTx mode.
 // State only gets persisted if all messages are valid and get executed successfully.
 // Otherwise, the ResponseDeliverTx will contain releveant error information.
